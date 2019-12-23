@@ -6,13 +6,13 @@
 #include "myLib.h"
 
 long next_millis = 0;
-bool seconds_status = false;
-bool seconds_last_status = true;
+bool seconds_status = true;
+bool seconds_last_status = false;
 
-int last_minute_low = 0;
-int last_minute_high = 0;
-int last_hour_low = 0;
-int last_hour_high = 0;
+int last_minute_low = -1;
+int last_minute_high = -1;
+int last_hour_low = -1;
+int last_hour_high = -1;
 const uint8_t RTC_1HZ_PIN(3);    // RTC provides a 1Hz interrupt signal on this pin
 
 void setup()
@@ -31,12 +31,30 @@ void setup()
 
     Wire.begin();
 
-    // configure port A as output
+    // configure port A as output for Expansion 20
     Wire.beginTransmission(0x20);
     Wire.write(0x00); // IODIRA register
     Wire.write(0x00); // set all of port A to outputs
     Wire.endTransmission();
-    
+
+    // configure port A as output for Expansion 20
+    Wire.beginTransmission(0x21);
+    Wire.write(0x00); // IODIRA register
+    Wire.write(0x00); // set all of port A to outputs
+    Wire.endTransmission();
+
+    // configure port A as output for Expansion 20
+    Wire.beginTransmission(0x22);
+    Wire.write(0x00); // IODIRA register
+    Wire.write(0x00); // set all of port A to outputs
+    Wire.endTransmission();
+
+    // configure port A as output for Expansion 20
+    Wire.beginTransmission(0x23);
+    Wire.write(0x00); // IODIRA register
+    Wire.write(0x00); // set all of port A to outputs
+    Wire.endTransmission();
+
     next_millis = millis() + 500; // increment by .5 seconds.
 }
 
@@ -57,67 +75,60 @@ void loop()
     if (t != tLast) {
         tLast = t;
         //printTime(t);
+        seconds_status = true;
+        seconds_last_status = false;
+        next_millis = millis() + 500;
     }
 
-    // if(seconds_status != seconds_last_status) {
-    //     setSegmentDigit(1, t_sec_low, seconds_status);
-    //     seconds_last_status = seconds_status;
-    // }
-
-    //Display Minutes low bit
-    LastBit m_lastBit = last_bit_ignore;
-    DisplayDigit m_low_digit = Digit_Minutes_Low;    
+    //Display Minutes low bit   
     if(minute(t) != last_minute_low) {
         last_minute_low = t_min_low;
-        writeDigit(m_low_digit, last_minute_low, m_lastBit);
+        writeDigit(4, last_minute_low, false);
     }
 
     //Display Minutes high bit
-    DisplayDigit m_high_digit = Digit_Minutes_High;
     if(minute(t) != last_minute_high) {
         last_minute_high = t_min_high;
-        writeDigit(m_high_digit, last_minute_high, m_lastBit);
+        writeDigit(3, last_minute_high, seconds_status);
+    }
+
+    //Display Hours low bit   
+    if(minute(t) != last_hour_low) {
+        last_hour_low = t_hour_low;
+        writeDigit(2, last_hour_low, false);
     }
 
     // Blink the seconds on high bit of minutes
     if(seconds_status != seconds_last_status) {
-        m_lastBit = seconds_status ? last_bit_set : last_bit_reset;
-        seconds_last_status = seconds_status;
-        writeDigit(m_high_digit, last_minute_high, m_lastBit);
+        writeDigit(2, last_hour_low, seconds_status);
     }
 
-    //Display Hours low bit
-    LastBit h_lastBit = last_bit_ignore;
-    DisplayDigit h_low_digit = Digit_Hours_Low;    
-    if(minute(t) != last_hour_low) {
-        last_hour_low = t_hour_low;
-        writeDigit(m_low_digit, last_hour_low, h_lastBit);
-    }
-
-    //Display Hours high bit
-    DisplayDigit h_high_digit = Digit_Hours_High;    
+    //Display Hours high bit  
     if(minute(t) != last_hour_high) {
         last_hour_high = t_hour_high;
-        writeDigit(h_high_digit, last_hour_high, h_lastBit);
+        writeDigit(1, last_hour_high, false);
     }
 
     if(millis() > next_millis) {
         next_millis = millis() + 500;
-        seconds_status = !seconds_status;
+        seconds_status = false;
+        seconds_last_status = true;
     }
 
 }
 
-void writeDigit(DisplayDigit digit, int number, LastBit lastBit) {
-
+void writeDigit(int digit, int number, bool lastBit) {
     int address = getDigitAddress(digit);
     int digitHex = getSegmentHex(number);
+    //Serial.println(address, HEX);
 
-    if(lastBit == last_bit_set) {
+    if(lastBit) {
         digitHex = digitHex | 0X80;
-    } else if(lastBit == last_bit_reset) {
+    } else{
         digitHex = digitHex & 0x7F;
     }
+
+    //Serial.println(digitHex, HEX);
 
     Wire.beginTransmission(address);
     Wire.write(0x12); // address port A

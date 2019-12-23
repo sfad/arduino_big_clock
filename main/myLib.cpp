@@ -1,20 +1,28 @@
 #include "myLib.h"
 
-int getDigitAddress(DisplayDigit digit) {
+int getDigitAddress(int digit) {
     switch (digit) {
-        case Digit_Minutes_High:
+        case 2:
             return 0x21;
-        case Digit_Hours_Low:
+        case 3:
             return 0x22;
-        case Digit_Hours_High:
+        case 4:
             return 0x23;
+        case 5:
+            return 0x24;
+        case 6:
+            return 0x25;
+        case 7:
+            return 0x26;
+        case 8:
+            return 0x27;
         default: // defaut Digit_Minutes_Low
             return 0x20;
     };
 }
 
 int getSegmentHex(int number) {
-    if(number < 0 || number > 0xFF) {
+    if(number < 0 || number > 0x0F) {
         return 0;
     }
     int segmentDigit[16] = {
