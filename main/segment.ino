@@ -1,26 +1,28 @@
 
+void setupIOPort(int digit) {
+    int address = getDigitAddress(digit);
+    // configure port A as output for Expansion 20
+    Wire.beginTransmission(address);
+    Wire.write(0x00); // IODIRA register
+    Wire.write(0x00); // set all of port A to outputs
+    Wire.endTransmission();
+}
 
-void setSegmentDigit(int digitNumber, int data, bool lastBit) {
-    int digitIndex = digitNumber - 1;
-    int addresses[4] = {0x20,0x21,0x22,0x23}; // default address
-    int segmentDigit[16] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x67, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71};
-    if(digitNumber > sizeof(addresses)) {
-        return;
-    }
-    if(data > sizeof(segmentDigit)) {
-        return;
-    }
-
-    int digit = segmentDigit[data];
+void writeDigit(int digit, int number, bool lastBit) {
+    int address = getDigitAddress(digit);
+    int digitHex = getSegmentHex(number);
+    //Serial.println(address, HEX);
 
     if(lastBit) {
-        digit = digit | 0X80;
-    } else {
-        digit = digit & 0x7F;
+        digitHex = digitHex | 0X80;
+    } else{
+        digitHex = digitHex & 0x7F;
     }
 
-    Wire.beginTransmission(addresses[digitIndex]);
+    //Serial.println(digitHex, HEX);
+
+    Wire.beginTransmission(address);
     Wire.write(0x12); // address port A
-    Wire.write(digit); // value to send
+    Wire.write(digitHex); // value to send
     Wire.endTransmission();
 }

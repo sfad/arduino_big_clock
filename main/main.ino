@@ -5,14 +5,19 @@
 
 #include "myLib.h"
 
+volatile time_t isrUTC;         // ISR's copy of current time in UTC
+
 long next_millis = 0;
 bool seconds_status = true;
 bool seconds_last_status = false;
 
+int last_second_low = -1;
+int last_second_high = -1;
 int last_minute_low = -1;
 int last_minute_high = -1;
 int last_hour_low = -1;
 int last_hour_high = -1;
+
 const uint8_t RTC_1HZ_PIN(3);    // RTC provides a 1Hz interrupt signal on this pin
 
 void setup()
@@ -24,36 +29,25 @@ void setup()
     RTC.squareWave(SQWAVE_1_HZ);            // 1 Hz square wave
 
     setSyncProvider(RTC.get);   // the function to get the time from the RTC
-    if(timeStatus() != timeSet)
+    if(timeStatus() != timeSet) {
         Serial.println("Unable to sync with the RTC");
-    else
+    }
+    else {
         Serial.println("RTC has set the system time");
+
+        ////setTime(23, 31, 30, 13, 2, 2009);   //set the system time to 23h31m30s on 13Feb2009
+        //setTime(13, 02, 00, 24, 12, 2019);
+        //RTC.set(now());                     //set the RTC from the system time
+
+        isrUTC = RTC.get();
+    }
 
     Wire.begin();
 
-    // configure port A as output for Expansion 20
-    Wire.beginTransmission(0x20);
-    Wire.write(0x00); // IODIRA register
-    Wire.write(0x00); // set all of port A to outputs
-    Wire.endTransmission();
-
-    // configure port A as output for Expansion 20
-    Wire.beginTransmission(0x21);
-    Wire.write(0x00); // IODIRA register
-    Wire.write(0x00); // set all of port A to outputs
-    Wire.endTransmission();
-
-    // configure port A as output for Expansion 20
-    Wire.beginTransmission(0x22);
-    Wire.write(0x00); // IODIRA register
-    Wire.write(0x00); // set all of port A to outputs
-    Wire.endTransmission();
-
-    // configure port A as output for Expansion 20
-    Wire.beginTransmission(0x23);
-    Wire.write(0x00); // IODIRA register
-    Wire.write(0x00); // set all of port A to outputs
-    Wire.endTransmission();
+    setupIOPort(1);
+    setupIOPort(2);
+    setupIOPort(3);
+    setupIOPort(4);
 
     next_millis = millis() + 500; // increment by .5 seconds.
 }
@@ -80,33 +74,51 @@ void loop()
         next_millis = millis() + 500;
     }
 
+    // // //Display Seconds low bit   
+    // if(t_sec_low != last_second_low) {
+    //     last_second_low = t_sec_low;
+    //     writeDigit(2, last_second_low, false);
+    // }
+
+    // // //Display Seconds high bit   
+    // if(t_sec_high != last_second_high) {
+    //     last_second_high = t_sec_high;
+    //     writeDigit(2, last_second_high, false);
+    // }
+
+
     //Display Minutes low bit   
-    if(minute(t) != last_minute_low) {
+    if(t_min_low != last_minute_low) {
         last_minute_low = t_min_low;
         writeDigit(4, last_minute_low, false);
+        printTime(t);
     }
 
     //Display Minutes high bit
-    if(minute(t) != last_minute_high) {
+    if(t_min_high != last_minute_high) {
         last_minute_high = t_min_high;
         writeDigit(3, last_minute_high, seconds_status);
     }
 
     //Display Hours low bit   
-    if(minute(t) != last_hour_low) {
+    if(t_hour_low != last_hour_low) {
         last_hour_low = t_hour_low;
         writeDigit(2, last_hour_low, false);
+
+        //every hour read again the time.
+        isrUTC = RTC.get();
+        t = getUTC();
+    }
+
+    //Display Hours high bit  
+    if(t_hour_high != last_hour_high) {
+        last_hour_high = t_hour_high;
+        writeDigit(1, last_hour_high, false);
     }
 
     // Blink the seconds on high bit of minutes
     if(seconds_status != seconds_last_status) {
         writeDigit(2, last_hour_low, seconds_status);
-    }
-
-    //Display Hours high bit  
-    if(minute(t) != last_hour_high) {
-        last_hour_high = t_hour_high;
-        writeDigit(1, last_hour_high, false);
     }
 
     if(millis() > next_millis) {
@@ -115,23 +127,4 @@ void loop()
         seconds_last_status = true;
     }
 
-}
-
-void writeDigit(int digit, int number, bool lastBit) {
-    int address = getDigitAddress(digit);
-    int digitHex = getSegmentHex(number);
-    //Serial.println(address, HEX);
-
-    if(lastBit) {
-        digitHex = digitHex | 0X80;
-    } else{
-        digitHex = digitHex & 0x7F;
-    }
-
-    //Serial.println(digitHex, HEX);
-
-    Wire.beginTransmission(address);
-    Wire.write(0x12); // address port A
-    Wire.write(digitHex); // value to send
-    Wire.endTransmission();
 }
