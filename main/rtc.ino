@@ -1,3 +1,4 @@
+volatile time_t isrUTC;         // ISR's copy of current time in UTC
 
 // return current time
 time_t getUTC()

@@ -5,14 +5,12 @@
 
 #include "myLib.h"
 
-volatile time_t isrUTC;         // ISR's copy of current time in UTC
-
 long next_millis = 0;
 bool seconds_status = true;
 bool seconds_last_status = false;
 
-int times_current[4];//[6];
-int times_last[4];//[6];
+int times_current[4] = { 0, 0, 0, 0 }; //[6];
+int times_last[4] = { 0, 0, 0, 0 }; //[6];
 
 const uint8_t RTC_1HZ_PIN(3);    // RTC provides a 1Hz interrupt signal on this pin
 
@@ -35,7 +33,7 @@ void setup()
         //setTime(13, 02, 00, 24, 12, 2019);
         //RTC.set(now());                     //set the RTC from the system time
 
-        isrUTC = RTC.get();
+        setUTC(RTC.get());
     }
 
     Wire.begin();
@@ -55,14 +53,14 @@ void loop()
     static time_t tLast;
     time_t t = getUTC();
 
-    // int times_current[DIGIT_SECONDS_LOW] = second(t) % 10;
-    // int times_current[DIGIT_SECONDS_HIGH] = second(t) / 10;
+    // times_current[DIGIT_SECONDS_LOW] = second(t) % 10;
+    // times_current[DIGIT_SECONDS_HIGH] = second(t) / 10;
 
-    int times_current[DIGIT_MINUTES_LOW] = minute(t) % 10;
-    int times_current[DIGIT_MINUTES_HIGH] = minute(t) / 10;
+    times_current[DIGIT_MINUTES_LOW] = minute(t) % 10;
+    times_current[DIGIT_MINUTES_HIGH] = minute(t) / 10;
 
-    int times_current[DIGIT_HOURS_LOW] = hour(t) % 10;
-    int times_current[DIGIT_HOURS_HIGH] = hour(t) / 10;
+    times_current[DIGIT_HOURS_LOW] = hour(t) % 10;
+    times_current[DIGIT_HOURS_HIGH] = hour(t) / 10;
     
     if (t != tLast) {
         tLast = t;
@@ -97,7 +95,7 @@ void Display_Show(int digit, bool lastBit) {
         times_last[digit] = times_current[digit];
         writeDigit(digit, times_current[digit], lastBit);
         if(digit == DIGIT_HOURS_LOW) {
-            isrUTC = RTC.get();
+            setUTC(RTC.get());
         }
     }
 }

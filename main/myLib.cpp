@@ -14,10 +14,6 @@ int getDigitAddress(int digit) {
             return 0x24;
         case DIGIT_SECONDS_LOW:
             return 0x25;
-        case 7:
-            return 0x26;
-        case 8:
-            return 0x27;
         default: // defaut Digit_Minutes_Low
             return 0x20;
     };
