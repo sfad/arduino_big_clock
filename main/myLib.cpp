@@ -2,15 +2,17 @@
 
 int getDigitAddress(int digit) {
     switch (digit) {
-        case 2:
+        case DIGIT_HOURS_HIGH:
+            return 0x20;        
+        case DIGIT_HOURS_LOW:
             return 0x21;
-        case 3:
+        case DIGIT_MINUTES_HIGH:
             return 0x22;
-        case 4:
+        case DIGIT_MINUTES_LOW:
             return 0x23;
-        case 5:
+        case DIGIT_SECONDS_HIGH:
             return 0x24;
-        case 6:
+        case DIGIT_SECONDS_LOW:
             return 0x25;
         case 7:
             return 0x26;

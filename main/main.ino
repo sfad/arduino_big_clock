@@ -11,15 +11,8 @@ long next_millis = 0;
 bool seconds_status = true;
 bool seconds_last_status = false;
 
-int times_current[6];
-int times_last[6];
-
-// int last_second_low = -1;
-// int last_second_high = -1;
-// int last_minute_low = -1;
-// int last_minute_high = -1;
-// int last_hour_low = -1;
-// int last_hour_high = -1;
+int times_current[4];//[6];
+int times_last[4];//[6];
 
 const uint8_t RTC_1HZ_PIN(3);    // RTC provides a 1Hz interrupt signal on this pin
 
@@ -47,10 +40,12 @@ void setup()
 
     Wire.begin();
 
-    setupIOPort(1);
-    setupIOPort(2);
-    setupIOPort(3);
-    setupIOPort(4);
+    setupIOPort(DIGIT_HOURS_HIGH);
+    setupIOPort(DIGIT_HOURS_LOW);
+    setupIOPort(DIGIT_MINUTES_HIGH);
+    setupIOPort(DIGIT_MINUTES_LOW);
+    // setupIOPort(DIGIT_SECONDS_HIGH);
+    // setupIOPort(DIGIT_SECONDS_LOW);
 
     next_millis = millis() + 500; // increment by .5 seconds.
 }
@@ -60,8 +55,8 @@ void loop()
     static time_t tLast;
     time_t t = getUTC();
 
-    int times_current[DIGIT_SECONDS_LOW] = second(t) % 10;
-    int times_current[DIGIT_SECONDS_HIGH] = second(t) / 10;
+    // int times_current[DIGIT_SECONDS_LOW] = second(t) % 10;
+    // int times_current[DIGIT_SECONDS_HIGH] = second(t) / 10;
 
     int times_current[DIGIT_MINUTES_LOW] = minute(t) % 10;
     int times_current[DIGIT_MINUTES_HIGH] = minute(t) / 10;
@@ -77,58 +72,15 @@ void loop()
         next_millis = millis() + 500;
     }
 
-    // // //Display Seconds low bit   
-    // if(t_sec_low != last_second_low) {
-    //     last_second_low = t_sec_low;
-    //     writeDigit(2, last_second_low, false);
-    // }
-
-    // // //Display Seconds high bit   
-    // if(t_sec_high != last_second_high) {
-    //     last_second_high = t_sec_high;
-    //     writeDigit(2, last_second_high, false);
-    // }
-
-
-    // //Display Minutes low bit   
-    // if(t_min_low != last_minute_low) {
-    //     last_minute_low = t_min_low;
-    //     writeDigit(4, last_minute_low, false);
-    //     printTime(t);
-    // }
-
-    // //Display Minutes high bit
-    // if(t_min_high != last_minute_high) {
-    //     last_minute_high = t_min_high;
-    //     writeDigit(3, last_minute_high, seconds_status);
-    // }
-
-    // //Display Hours low bit   
-    // if(t_hour_low != last_hour_low) {
-    //     last_hour_low = t_hour_low;
-    //     writeDigit(2, last_hour_low, false);
-
-    //     //every hour read again the time.
-    //     isrUTC = RTC.get();
-    //     t = getUTC();
-    // }
-
-    // //Display Hours high bit  
-    // if(t_hour_high != last_hour_high) {
-    //     last_hour_high = t_hour_high;
-    //     writeDigit(1, last_hour_high, false);
-    // }
-
     Display_Show(DIGIT_HOURS_HIGH, false);
     Display_Show(DIGIT_HOURS_LOW, false);
     Display_Show(DIGIT_MINUTES_HIGH, seconds_status);
     Display_Show(DIGIT_MINUTES_LOW, false);
-    Display_Show(DIGIT_SECONDS_HIGH, false);
-    Display_Show(DIGIT_SECONDS_LOW, false);
+    // Display_Show(DIGIT_SECONDS_HIGH, false);
+    // Display_Show(DIGIT_SECONDS_LOW, false);
 
     // Blink the seconds on high bit of minutes
     if(seconds_status != seconds_last_status) {
-       // writeDigit(2, last_hour_low, seconds_status);
        Display_Show(DIGIT_MINUTES_HIGH, seconds_status);
     }
 
