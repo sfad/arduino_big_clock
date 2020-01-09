@@ -32,10 +32,10 @@ int DigitalClock::getDigitAddress(int digit) {
 }
 
 int DigitalClock::getSegmentHex(int number) {
-    if(number < 0 || number > 19) {
+    if(number < 0 || number > 20) {
         return 0;
     }
-    int segmentDigit[19] = {
+    int segmentDigit[20] = {
         0x3F, // Hex for digit 0
         0x06, // Hex for digit 1
         0x5B, // Hex for digit 2
@@ -51,10 +51,11 @@ int DigitalClock::getSegmentHex(int number) {
         0x39, // Hex for digit C
         0x5E, // Hex for digit D
         0x79, // Hex for digit E
-        0x71,  // Hex for digit F
-        0x61,  // Hex for digit c
-        0x74,  // Hex for digit h
-        0x76  // Hex for digit H
+        0x71, // Hex for digit F
+        0x61, // Hex for digit c
+        0x74, // Hex for digit h
+        0x76, // Hex for digit H
+        0x63  // Hex for digit o
     };
     return segmentDigit[number];
 }

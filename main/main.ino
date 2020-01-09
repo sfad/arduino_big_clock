@@ -1,4 +1,6 @@
 #include <Arduino.h>
+#include <avr/wdt.h>
+#include <SoftwareSerial.h>
 #include <DS3232RTC.h>
 
 #include "clockLib.h"
@@ -7,6 +9,9 @@
 #define DHTPIN 5        // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
 DHT dht(DHTPIN, DHTTYPE);
+
+String bt__data = "";
+String bt__cmd = "";
 
 DigitalClock clock;
 long next_millis = 0;
@@ -19,10 +24,17 @@ int times_current[4] = { 0 }; //[6];
 int times_last[4] = { -1 }; //[6];
 
 const uint8_t RTC_1HZ_PIN(2);    // RTC provides a 1Hz interrupt signal on this pin
+SoftwareSerial BT(BLUETOOTH_RX, BLUETOOTH_TX); //tx, rx
 
 void setup()
 {
-    Serial.begin(115200);
+    Serial.begin(9600);
+    BT.begin(9600);
+    
+    BT.write("AT+NAMEBig_Clock");
+    delay(200);
+    BT.write("AT+PIN0000");
+    delay(200);
 
     pinMode(RTC_1HZ_PIN, INPUT_PULLUP);     // enable pullup on interrupt pin (RTC SQW pin is open drain)
     attachInterrupt(digitalPinToInterrupt(RTC_1HZ_PIN), incrementTime, FALLING);
@@ -45,11 +57,57 @@ void setup()
     dht.begin();
     clock.begin();
 
+    //enable watchdog timer for 1 second
+    wdt_enable(WDTO_1S);
+
     next_millis = millis() + 500; // increment by .5 seconds.
 }
 
 void loop()
 {
+    //reset the watchdog timer
+    wdt_reset();
+
+    char data = 0;
+    if(BT.available() > 0) {
+        data = BT.read();
+        if(data != ';') {
+            bt__data += data;
+        } else {
+            char input[22];
+            bt__data.toCharArray(input, bt__data.length() + 1); // "A bird came down the walk";
+            char *token = strtok(input, " ");
+            int bt__time[6] = { 0 };
+            for(int i=0; i < 6; i++) {
+                String __out = token;
+                if(i>0) {
+                    bt__time[i] = __out.toInt();
+                } else {
+                    bt__cmd = token;
+                }
+                token = strtok(NULL, " ");
+            }
+
+            setTime(
+                bt__time[1],    // hours
+                bt__time[2],    // minutes
+                bt__time[3],    // seconds
+                bt__time[4],    // day
+                bt__time[5],    // month
+                bt__time[6]     // year
+            );
+            RTC.set(now());                     //set the RTC from the system time
+            setUTC(RTC.get());           
+
+            // Serial.println(bt__data);
+            // Serial.println(bt__cmd);
+            // Serial.println(bt__time[1]);
+            // Serial.println(bt__time[2]);
+            // Serial.println(bt__time[3]);
+            bt__data = "";
+        }
+    }
+
     static time_t tLast;
     time_t t = getUTC();
     
@@ -71,21 +129,21 @@ void loop()
         } else {
             display__Mode = CLOCK_MODE_TIME;
         }
-        switch (display__Mode) {
-            case CLOCK_MODE_TEMPERATURE:
-                Display_Temerature();
-                break;
-            case CLOCK_MODE_HUMIDITY:
-                Display_Humidity();
-                break;
-            default:
-                //fill array with -1
-                memset(times_last, -1, sizeof times_last);
-                Display_Time(t);
-                break;
-        }
     }
 
+    switch (display__Mode) {
+        case CLOCK_MODE_TEMPERATURE:
+            Display_Temerature();
+            break;
+        case CLOCK_MODE_HUMIDITY:
+            Display_Humidity();
+            break;
+        default:
+            //fill array with -1
+            memset(times_last, -1, sizeof times_last);
+            Display_Time(t);
+            break;
+    }
     if(millis() > next_millis) {
         next_millis = millis() + 500;
         seconds_status = false;
@@ -130,10 +188,10 @@ void Display_Temerature() {
     int temp_low = (int)temp % 10;
     clock.writeDigit(DIGIT_HOURS_HIGH, temp_heigh, false);
     clock.writeDigit(DIGIT_HOURS_LOW, temp_low, false);
-    //show c
-    clock.writeDigit(DIGIT_MINUTES_HIGH, 16, false);
-    //turn off
-    clock.writeDigit(DIGIT_MINUTES_LOW, -1, false);
+    //show o
+    clock.writeDigit(DIGIT_MINUTES_HIGH, 19, false);
+    //show C
+    clock.writeDigit(DIGIT_MINUTES_LOW, 12, false);
 }
 
 void Display_Humidity() {
@@ -154,7 +212,12 @@ void Display_Humidity() {
 }
 
 void Display_Show(int digit, bool lastBit) {
-    if(times_current[digit] != times_last[digit]) {
+    bool lastBit_changed = false;
+    if((digit == DIGIT_HOURS_LOW) && (seconds_status != seconds_last_status)) {
+        lastBit_changed = true;
+    }
+
+    if((times_current[digit] != times_last[digit]) || lastBit_changed) {
         times_last[digit] = times_current[digit];
         int _digitValue = times_current[digit];
         if(digit == DIGIT_HOURS_HIGH) {

@@ -1,6 +1,9 @@
 #ifndef _CLOCK_LIB_H
 #define _CLOCK_LIB_H
 
+#define BLUETOOTH_TX 3
+#define BLUETOOTH_RX 4
+
 const int DIGIT_HOURS_HIGH = 0;
 const int DIGIT_HOURS_LOW = 1;
 const int DIGIT_MINUTES_HIGH = 2;
