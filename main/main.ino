@@ -10,6 +10,8 @@
 #define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
 DHT dht(DHTPIN, DHTTYPE);
 
+volatile time_t isrUTC;         // ISR's copy of current time in UTC
+
 String bt__data = "";
 String bt__cmd = "";
 
@@ -18,10 +20,9 @@ long next_millis = 0;
 bool seconds_status = true;
 bool seconds_last_status = false;
 
+OperationMode clock__Mode = CLOCK_OP_MODE_CLOCK;
 ClockMode display__Mode = CLOCK_MODE_TIME;
-
-int times_current[4] = { 0 }; //[6];
-int times_last[4] = { -1 }; //[6];
+bool display__mode_time = false; // when change from other mode reset last states.
 
 const uint8_t RTC_1HZ_PIN(2);    // RTC provides a 1Hz interrupt signal on this pin
 SoftwareSerial BT(BLUETOOTH_RX, BLUETOOTH_TX); //tx, rx
@@ -74,40 +75,114 @@ void loop()
         if(data != ';') {
             bt__data += data;
         } else {
-            char input[22];
-            bt__data.toCharArray(input, bt__data.length() + 1); // "A bird came down the walk";
-            char *token = strtok(input, " ");
-            int bt__time[6] = { 0 };
-            for(int i=0; i < 6; i++) {
-                String __out = token;
-                if(i>0) {
-                    bt__time[i] = __out.toInt();
-                } else {
-                    bt__cmd = token;
-                }
-                token = strtok(NULL, " ");
-            }
-
-            setTime(
-                bt__time[1],    // hours
-                bt__time[2],    // minutes
-                bt__time[3],    // seconds
-                bt__time[4],    // day
-                bt__time[5],    // month
-                bt__time[6]     // year
-            );
-            RTC.set(now());                     //set the RTC from the system time
-            setUTC(RTC.get());           
-
-            // Serial.println(bt__data);
-            // Serial.println(bt__cmd);
-            // Serial.println(bt__time[1]);
-            // Serial.println(bt__time[2]);
-            // Serial.println(bt__time[3]);
+            //found ; end of data and start data processing
+            clock__Mode = btDataProcess();
             bt__data = "";
         }
     }
 
+    switch (clock__Mode)
+    {
+        case CLOCK_OP_MODE_SCORE:
+            /* code */
+            break;
+        case CLOCK_OP_MODE_TIMER:
+            /* code */
+            break;
+        default: // Clock Mode
+            Do_ClockMode();
+            break;
+    }
+
+    //printTemperature();
+}
+
+OperationMode btDataProcess() {
+    char input[22];
+    bt__data.toCharArray(input, bt__data.length() + 1);
+    char *token = strtok(input, " ");
+
+    bt__cmd = token;
+    token = strtok(NULL, " ");
+
+    if (bt__cmd == "setTime")
+    {
+        int bt__time[6] = {0};
+        for (int i = 0; i < 5; i++)
+        {
+            String __out = token;
+            bt__time[i] = __out.toInt();
+            token = strtok(NULL, " ");
+        }
+
+        setTime(
+            bt__time[0], // hours
+            bt__time[1], // minutes
+            bt__time[2], // seconds
+            bt__time[3], // day
+            bt__time[4], // month
+            bt__time[5]  // year
+        );
+        RTC.set(now()); //set the RTC from the system time
+        setUTC(RTC.get());
+
+        Serial.println(bt__time[0]);
+        Serial.println(bt__time[1]);
+        Serial.println(bt__time[2]);
+        Serial.println("you are in [set time mode]");
+    }
+    
+    else if(bt__cmd == "scoreMode") {
+        String __team1 = token;
+        token = strtok(NULL, " ");
+        String __team2 = token;
+        Serial.print(F("Team1: "));
+        Serial.print(__team1);
+        Serial.print(F(" Team2: "));
+        Serial.println(__team2);
+    }
+
+    // Serial.println(bt__data);
+    // Serial.println(bt__cmd);
+
+    return clock.getOperationMode(bt__cmd);
+}
+
+// ------  RTC ---------
+
+// return current time
+time_t getUTC() {
+    noInterrupts();
+    time_t utc = isrUTC;
+    interrupts();
+    return utc;
+}
+
+// set the current time
+void setUTC(time_t utc) {
+    noInterrupts();
+    isrUTC = utc;
+    interrupts();
+}
+
+// 1Hz RTC interrupt handler increments the current time
+void incrementTime() {
+    ++isrUTC;
+}
+
+// format and print a time_t value
+void printTime(time_t t) {
+    char buf[25];
+    char m[4];    // temporary storage for month string (DateStrings.cpp uses shared buffer)
+    strcpy(m, monthShortStr(month(t)));
+    sprintf(buf, "%.2d:%.2d:%.2d %s %.2d %s %d",
+        hour(t), minute(t), second(t), dayShortStr(weekday(t)), day(t), m, year(t));
+    Serial.println(buf);
+}
+
+// ------ END RTC ------
+
+void Do_ClockMode() {
     static time_t tLast;
     time_t t = getUTC();
     
@@ -119,29 +194,24 @@ void loop()
         seconds_last_status = false;
         next_millis = millis() + 500;
 
-        int __seconds = second(t);
-        if(__seconds < 30) {
-            display__Mode = CLOCK_MODE_TIME;
-        } else if(__seconds < 35 ) {
-            display__Mode = CLOCK_MODE_TEMPERATURE;   
-        } else if(__seconds < 38) {
-            display__Mode = CLOCK_MODE_HUMIDITY;
-        } else {
-            display__Mode = CLOCK_MODE_TIME;
-        }
+        display__Mode = clock.getClockMode(second(t));
     }
 
     switch (display__Mode) {
         case CLOCK_MODE_TEMPERATURE:
             Display_Temerature();
+            display__mode_time = false;
             break;
         case CLOCK_MODE_HUMIDITY:
             Display_Humidity();
+            display__mode_time = false;
             break;
         default:
-            //fill array with -1
-            memset(times_last, -1, sizeof times_last);
-            Display_Time(t);
+            // if(!display__mode_time) {
+            //     clock.clearDigitsLast();
+            // }
+            showTimeDigits(t);
+            display__mode_time = true;
             break;
     }
     if(millis() > next_millis) {
@@ -149,31 +219,39 @@ void loop()
         seconds_status = false;
         seconds_last_status = true;
     }
-
-    //printTemperature();
 }
 
-void Display_Time(time_t t ) {
-    //Serial.println("Time Mode");
+void showTimeDigits(time_t t) {
     // times_current[DIGIT_SECONDS_LOW] = second(t) % 10;
     // times_current[DIGIT_SECONDS_HIGH] = second(t) / 10;
 
-    times_current[DIGIT_MINUTES_LOW] = minute(t) % 10;
-    times_current[DIGIT_MINUTES_HIGH] = minute(t) / 10;
+    uint8_t time_minutes_low = minute(t) % 10;
+    uint8_t time_minutes_high = minute(t) / 10;
 
-    times_current[DIGIT_HOURS_LOW] = hourFormat12(t) % 10;
-    times_current[DIGIT_HOURS_HIGH] = hourFormat12(t) / 10;
+    uint8_t time_hours_low = hourFormat12(t) % 10;
+    uint8_t time_hours_high = hourFormat12(t) / 10;
 
-    Display_Show(DIGIT_HOURS_HIGH, false);
-    Display_Show(DIGIT_HOURS_LOW, seconds_status);
-    Display_Show(DIGIT_MINUTES_HIGH, false);
-    Display_Show(DIGIT_MINUTES_LOW, false);
-    // Display_Show(DIGIT_SECONDS_HIGH, false);
-    // Display_Show(DIGIT_SECONDS_LOW, false);
+    clock.setDigit(DIGIT_HOURS_LOW, time_hours_low);
+    clock.setDigit(DIGIT_HOURS_HIGH, time_hours_high);
+    clock.setDigit(DIGIT_MINUTES_LOW, time_minutes_low);
+    clock.setDigit(DIGIT_MINUTES_HIGH, time_minutes_high);
 
-    // Blink the seconds on high bit of minutes
+    Display_Refresh();
+}
+
+void Display_Refresh() {
+    //Serial.println("Time Mode");
+
+    clock.displayDigit(DIGIT_HOURS_HIGH);
+    clock.displayDigit(DIGIT_HOURS_LOW);
+    clock.displayDigit(DIGIT_MINUTES_HIGH);
+    clock.displayDigit(DIGIT_MINUTES_LOW);
+    // clock.displayDigit(DIGIT_SECONDS_HIGH);
+    // clock.displayDigit(DIGIT_SECONDS_LOW);
+
+    // Blink the seconds on low bit of hours
     if(seconds_status != seconds_last_status) {
-       Display_Show(DIGIT_MINUTES_HIGH, seconds_status);
+       clock.changeLastBit(DIGIT_MINUTES_LOW, seconds_status);
     }
 }
 
@@ -184,14 +262,16 @@ void Display_Temerature() {
     if(isnan(temp)) {
         return;
     }
-    int temp_heigh = (int)temp / 10;
-    int temp_low = (int)temp % 10;
-    clock.writeDigit(DIGIT_HOURS_HIGH, temp_heigh, false);
-    clock.writeDigit(DIGIT_HOURS_LOW, temp_low, false);
+    uint8_t temp_heigh = (int)temp / 10;
+    uint8_t temp_low = (int)temp % 10;
+    clock.setDigit(DIGIT_HOURS_HIGH, temp_heigh);
+    clock.setDigit(DIGIT_HOURS_LOW, temp_low);
     //show o
-    clock.writeDigit(DIGIT_MINUTES_HIGH, 19, false);
+    clock.setDigit(DIGIT_MINUTES_HIGH, 19);
     //show C
-    clock.writeDigit(DIGIT_MINUTES_LOW, 12, false);
+    clock.setDigit(DIGIT_MINUTES_LOW, 12);
+
+    Display_Refresh();
 }
 
 void Display_Humidity() {
@@ -201,36 +281,16 @@ void Display_Humidity() {
     if(isnan(h)) {
         return;
     }
-    int h_heigh = (int)h / 10;
-    int h_low = (int)h % 10;
-    clock.writeDigit(DIGIT_HOURS_HIGH, h_heigh, false);
-    clock.writeDigit(DIGIT_HOURS_LOW, h_low, false);
+    uint8_t h_heigh = (int)h / 10;
+    uint8_t h_low = (int)h % 10;
+    clock.setDigit(DIGIT_HOURS_HIGH, h_heigh);
+    clock.setDigit(DIGIT_HOURS_LOW, h_low);
     //show h
-    clock.writeDigit(DIGIT_MINUTES_HIGH, 17, false);
+    clock.setDigit(DIGIT_MINUTES_HIGH, 17);
     //turn off
-    clock.writeDigit(DIGIT_MINUTES_LOW, -1, false);
-}
+    clock.setDigit(DIGIT_MINUTES_LOW, -1);
 
-void Display_Show(int digit, bool lastBit) {
-    bool lastBit_changed = false;
-    if((digit == DIGIT_HOURS_LOW) && (seconds_status != seconds_last_status)) {
-        lastBit_changed = true;
-    }
-
-    if((times_current[digit] != times_last[digit]) || lastBit_changed) {
-        times_last[digit] = times_current[digit];
-        int _digitValue = times_current[digit];
-        if(digit == DIGIT_HOURS_HIGH) {
-            //trurn of last digit when it equal to zero
-            _digitValue = _digitValue > 0 ? _digitValue : -1;
-            clock.writeDigit(digit, _digitValue, lastBit);
-        } else {
-            clock.writeDigit(digit, _digitValue, lastBit);
-        }
-        if(digit == DIGIT_HOURS_LOW) {
-            setUTC(RTC.get());
-        }
-    }
+    Display_Refresh();
 }
 
 void printTemperature() {

@@ -4,15 +4,15 @@
 void DigitalClock::begin() {
     Wire.begin();
 
-    setupIOPort(DIGIT_HOURS_HIGH);
-    setupIOPort(DIGIT_HOURS_LOW);
-    setupIOPort(DIGIT_MINUTES_HIGH);
-    setupIOPort(DIGIT_MINUTES_LOW);
-    // setupIOPort(DIGIT_SECONDS_HIGH);
-    // setupIOPort(DIGIT_SECONDS_LOW);
+    setupIOPort(DIGIT_HOURS_HIGH, 0x00, 0x00);
+    setupIOPort(DIGIT_HOURS_LOW, 0x00, 0x00);
+    setupIOPort(DIGIT_MINUTES_HIGH, 0x00, 0x00);
+    setupIOPort(DIGIT_MINUTES_LOW, 0x00, 0x00);
+    // setupIOPort(DIGIT_SECONDS_HIGH, 0x00, 0x00);
+    // setupIOPort(DIGIT_SECONDS_LOW, 0x00, 0x00);
 }
 
-int DigitalClock::getDigitAddress(int digit) {
+int DigitalClock::getDigitAddress(uint8_t digit) {
     switch (digit) {
         case DIGIT_HOURS_HIGH:
             return 0x20;        
@@ -31,7 +31,7 @@ int DigitalClock::getDigitAddress(int digit) {
     };
 }
 
-int DigitalClock::getSegmentHex(int number) {
+int DigitalClock::getSegmentHex(uint8_t number) {
     if(number < 0 || number > 20) {
         return 0;
     }
@@ -60,32 +60,96 @@ int DigitalClock::getSegmentHex(int number) {
     return segmentDigit[number];
 }
 
-void DigitalClock::setupIOPort(int digit) {
+void DigitalClock::setupIOPort(uint8_t digit, uint8_t port, uint8_t portDir) {
     int address = getDigitAddress(digit);
     // configure port A as output for Expansion 20
     Wire.beginTransmission(address);
-    Wire.write(0x00); // IODIRA register
-    Wire.write(0x00); // set all of port A to outputs
+    Wire.write(port); // 0x00 IO_DIR_A register 
+    Wire.write(portDir); // set all of port A to outputs
     Wire.endTransmission();
 }
 
-void DigitalClock::writeDigit(int digit, int number, bool lastBit) {
+void DigitalClock::setDigit(uint8_t digit, signed char digitValue) {
+    digits_current[digit] = digitValue;
+}
+
+void DigitalClock::clearDigitsLast() {
+    memset(digits_last, -1, sizeof digits_last);
+}
+
+void DigitalClock::writeDigit(uint8_t digit, signed char digitHex) {
     int address = getDigitAddress(digit);
-    int digitHex = getSegmentHex(number);
     //Serial.println(address, HEX);
 
-    if(number >= 0) {
-        if(lastBit) {
-            digitHex = digitHex | 0X80;
-        } else{
-            digitHex = digitHex & 0x7F;
-        }
-    }
-
+    digits_last[digit] = digitHex;
     //Serial.println(digitHex, HEX);
 
     Wire.beginTransmission(address);
     Wire.write(0x12); // address port A
     Wire.write(digitHex); // value to send
     Wire.endTransmission();
+}
+
+void DigitalClock::displayDigit(uint8_t digit) {
+    if((digits_current[digit] != digits_last[digit])) {
+        //digits_last[digit] = digits_current[digit];
+        int _digitHex = getSegmentHex(digits_current[digit]);
+        if(digit == DIGIT_HOURS_HIGH) {
+            //trurn of last digit when it equal to zero
+            _digitHex = _digitHex > 0 ? _digitHex : -1;
+            writeDigit(digit, _digitHex);
+        } else {
+            writeDigit(digit, _digitHex);
+        }
+        // Serial.print("Digit: ");
+        // Serial.print(digit);
+        // Serial.print(" Value: ");
+        // Serial.println(_digitValue);
+    }
+}
+
+void DigitalClock::changeLastBit(uint8_t digit, bool bitHigh) {
+    int digitHex = getSegmentHex(digits_current[digit]);
+    if (bitHigh) {
+        digitHex = digitHex | 0X80;
+    }
+    else {
+        digitHex = digitHex & 0x7F;
+    }
+    digits_current[digit] = digitHex;
+    displayDigit(digit);
+}
+
+ClockMode DigitalClock::getClockMode(uint8_t t_seconds) {
+    if (t_seconds < 30)
+    {
+        return CLOCK_MODE_TIME;
+    }
+    else if (t_seconds < 35)
+    {
+        return CLOCK_MODE_TEMPERATURE;
+    }
+    else if (t_seconds < 38)
+    {
+        return CLOCK_MODE_HUMIDITY;
+    }
+    else
+    {
+        return CLOCK_MODE_TIME;
+    }
+}
+
+OperationMode DigitalClock::getOperationMode(String ck__cmd) {
+    if (ck__cmd == "scoreMode")
+    {
+        return CLOCK_OP_MODE_SCORE;
+    }
+    else if (ck__cmd == "timerMode")
+    {
+        return CLOCK_OP_MODE_TIMER;
+    }
+    else
+    {
+        return CLOCK_OP_MODE_CLOCK;
+    }
 }
