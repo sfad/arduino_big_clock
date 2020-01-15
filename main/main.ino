@@ -136,6 +136,7 @@ OperationMode btDataProcess() {
         String __team1 = token;
         token = strtok(NULL, " ");
         String __team2 = token;
+        showScoreMode(__team1.toInt(), __team2.toInt());
         Serial.print(F("Team1: "));
         Serial.print(__team1);
         Serial.print(F(" Team2: "));
@@ -182,6 +183,8 @@ void printTime(time_t t) {
 
 // ------ END RTC ------
 
+// ---- Clock OperationMode ----
+
 void Do_ClockMode() {
     static time_t tLast;
     time_t t = getUTC();
@@ -207,9 +210,6 @@ void Do_ClockMode() {
             display__mode_time = false;
             break;
         default:
-            // if(!display__mode_time) {
-            //     clock.clearDigitsLast();
-            // }
             showTimeDigits(t);
             display__mode_time = true;
             break;
@@ -237,22 +237,6 @@ void showTimeDigits(time_t t) {
     clock.setDigit(DIGIT_MINUTES_HIGH, time_minutes_high);
 
     Display_Refresh();
-}
-
-void Display_Refresh() {
-    //Serial.println("Time Mode");
-
-    clock.displayDigit(DIGIT_HOURS_HIGH);
-    clock.displayDigit(DIGIT_HOURS_LOW);
-    clock.displayDigit(DIGIT_MINUTES_HIGH);
-    clock.displayDigit(DIGIT_MINUTES_LOW);
-    // clock.displayDigit(DIGIT_SECONDS_HIGH);
-    // clock.displayDigit(DIGIT_SECONDS_LOW);
-
-    // Blink the seconds on low bit of hours
-    if(seconds_status != seconds_last_status) {
-       clock.changeLastBit(DIGIT_MINUTES_LOW, seconds_status);
-    }
 }
 
 void Display_Temerature() {
@@ -291,6 +275,46 @@ void Display_Humidity() {
     clock.setDigit(DIGIT_MINUTES_LOW, -1);
 
     Display_Refresh();
+}
+
+// ---- END Clock OperationMode ----
+
+// ---- scoreMode ----
+
+void showScoreMode(uint8_t score1, uint8_t score2) {
+    uint8_t score1_low = score1 % 10;
+    uint8_t score1_high = score1 / 10;
+
+    uint8_t score2_low = score2 % 10;
+    uint8_t score2_high = score2 / 10;
+
+    clock.setDigit(DIGIT_HOURS_LOW, score1_low);
+    clock.setDigit(DIGIT_HOURS_HIGH, score1_high);
+    clock.setDigit(DIGIT_MINUTES_LOW, score2_low);
+    clock.setDigit(DIGIT_MINUTES_HIGH, score2_high);
+
+    Display_Refresh();
+}
+
+// ---- END scoreMode ----
+
+void Display_Refresh() {
+    //Serial.println("Time Mode");
+
+    clock.displayDigit(DIGIT_HOURS_HIGH);
+    clock.displayDigit(DIGIT_HOURS_LOW);
+    clock.displayDigit(DIGIT_MINUTES_HIGH);
+    clock.displayDigit(DIGIT_MINUTES_LOW);
+    // clock.displayDigit(DIGIT_SECONDS_HIGH);
+    // clock.displayDigit(DIGIT_SECONDS_LOW);
+
+    // Blink the seconds on low bit of hours
+    if(seconds_status != seconds_last_status) {
+        seconds_last_status = seconds_status;
+        clock.changeLastBit(DIGIT_HOURS_LOW, seconds_status);
+        // Serial.print("Seconds changed: ");
+        // Serial.println(seconds_status);
+    }
 }
 
 void printTemperature() {

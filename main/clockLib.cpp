@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <Wire.h>
 #include "clockLib.h"
 
@@ -70,7 +71,7 @@ void DigitalClock::setupIOPort(uint8_t digit, uint8_t port, uint8_t portDir) {
 }
 
 void DigitalClock::setDigit(uint8_t digit, signed char digitValue) {
-    digits_current[digit] = digitValue;
+    digits_current[digit] = getSegmentHex(digitValue);
 }
 
 void DigitalClock::clearDigitsLast() {
@@ -92,8 +93,13 @@ void DigitalClock::writeDigit(uint8_t digit, signed char digitHex) {
 
 void DigitalClock::displayDigit(uint8_t digit) {
     if((digits_current[digit] != digits_last[digit])) {
-        //digits_last[digit] = digits_current[digit];
-        int _digitHex = getSegmentHex(digits_current[digit]);
+        Serial.print("Digit: ");
+        Serial.print(digit);
+        Serial.print(" Value: ");
+        Serial.print(digits_current[digit]);
+        Serial.print(" Last: ");
+        Serial.println(digits_last[digit]);
+        signed char _digitHex = digits_current[digit];
         if(digit == DIGIT_HOURS_HIGH) {
             //trurn of last digit when it equal to zero
             _digitHex = _digitHex > 0 ? _digitHex : -1;
@@ -101,15 +107,11 @@ void DigitalClock::displayDigit(uint8_t digit) {
         } else {
             writeDigit(digit, _digitHex);
         }
-        // Serial.print("Digit: ");
-        // Serial.print(digit);
-        // Serial.print(" Value: ");
-        // Serial.println(_digitValue);
     }
 }
 
 void DigitalClock::changeLastBit(uint8_t digit, bool bitHigh) {
-    int digitHex = getSegmentHex(digits_current[digit]);
+    int digitHex = digits_current[digit];
     if (bitHigh) {
         digitHex = digitHex | 0X80;
     }
