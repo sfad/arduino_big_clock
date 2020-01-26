@@ -70,8 +70,15 @@ void DigitalClock::setupIOPort(uint8_t digit, uint8_t port, uint8_t portDir) {
     Wire.endTransmission();
 }
 
-void DigitalClock::setDigit(uint8_t digit, signed char digitValue) {
-    digits_current[digit] = getSegmentHex(digitValue);
+void DigitalClock::setDigit(uint8_t digit, signed char digitValue, bool lastBit) {
+    signed char digitHex = getSegmentHex(digitValue);
+    if (lastBit) {
+        digitHex = digitHex | 0X80;
+    }
+    else {
+        digitHex = digitHex & 0x7F;
+    }
+    digits_current[digit] = digitHex;
 }
 
 void DigitalClock::clearDigitsLast() {
@@ -93,33 +100,21 @@ void DigitalClock::writeDigit(uint8_t digit, signed char digitHex) {
 
 void DigitalClock::displayDigit(uint8_t digit) {
     if((digits_current[digit] != digits_last[digit])) {
-        Serial.print("Digit: ");
-        Serial.print(digit);
-        Serial.print(" Value: ");
-        Serial.print(digits_current[digit]);
-        Serial.print(" Last: ");
-        Serial.println(digits_last[digit]);
+        // Serial.print("Digit: ");
+        // Serial.print(digit);
+        // Serial.print(" Value: ");
+        // Serial.print(digits_current[digit]);
+        // Serial.print(" Last: ");
+        // Serial.println(digits_last[digit]);
         signed char _digitHex = digits_current[digit];
         if(digit == DIGIT_HOURS_HIGH) {
             //trurn of last digit when it equal to zero
-            _digitHex = _digitHex > 0 ? _digitHex : -1;
+            _digitHex = _digitHex != getSegmentHex(0) ? _digitHex : 0;
             writeDigit(digit, _digitHex);
         } else {
             writeDigit(digit, _digitHex);
         }
     }
-}
-
-void DigitalClock::changeLastBit(uint8_t digit, bool bitHigh) {
-    int digitHex = digits_current[digit];
-    if (bitHigh) {
-        digitHex = digitHex | 0X80;
-    }
-    else {
-        digitHex = digitHex & 0x7F;
-    }
-    digits_current[digit] = digitHex;
-    displayDigit(digit);
 }
 
 ClockMode DigitalClock::getClockMode(uint8_t t_seconds) {

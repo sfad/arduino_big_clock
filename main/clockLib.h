@@ -27,10 +27,9 @@ enum OperationMode {
 class DigitalClock {
     public:
         void begin();
-        void setDigit(uint8_t digit, signed char digitValue);
+        void setDigit(uint8_t digit, signed char digitValue, bool lastBit);
         void clearDigitsLast();
         void displayDigit(uint8_t digit);
-        void changeLastBit(uint8_t digit, bool bitHigh);
         int getSegmentHex(uint8_t number);
         ClockMode getClockMode(uint8_t t_seconds);
         OperationMode getOperationMode(String ck__cmd);

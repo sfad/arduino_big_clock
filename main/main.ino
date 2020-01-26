@@ -22,7 +22,6 @@ bool seconds_last_status = false;
 
 OperationMode clock__Mode = CLOCK_OP_MODE_CLOCK;
 ClockMode display__Mode = CLOCK_MODE_TIME;
-bool display__mode_time = false; // when change from other mode reset last states.
 
 const uint8_t RTC_1HZ_PIN(2);    // RTC provides a 1Hz interrupt signal on this pin
 SoftwareSerial BT(BLUETOOTH_RX, BLUETOOTH_TX); //tx, rx
@@ -203,15 +202,12 @@ void Do_ClockMode() {
     switch (display__Mode) {
         case CLOCK_MODE_TEMPERATURE:
             Display_Temerature();
-            display__mode_time = false;
             break;
         case CLOCK_MODE_HUMIDITY:
             Display_Humidity();
-            display__mode_time = false;
             break;
         default:
             showTimeDigits(t);
-            display__mode_time = true;
             break;
     }
     if(millis() > next_millis) {
@@ -231,10 +227,10 @@ void showTimeDigits(time_t t) {
     uint8_t time_hours_low = hourFormat12(t) % 10;
     uint8_t time_hours_high = hourFormat12(t) / 10;
 
-    clock.setDigit(DIGIT_HOURS_LOW, time_hours_low);
-    clock.setDigit(DIGIT_HOURS_HIGH, time_hours_high);
-    clock.setDigit(DIGIT_MINUTES_LOW, time_minutes_low);
-    clock.setDigit(DIGIT_MINUTES_HIGH, time_minutes_high);
+    clock.setDigit(DIGIT_HOURS_LOW, time_hours_low, seconds_status);
+    clock.setDigit(DIGIT_HOURS_HIGH, time_hours_high, false);
+    clock.setDigit(DIGIT_MINUTES_LOW, time_minutes_low, false);
+    clock.setDigit(DIGIT_MINUTES_HIGH, time_minutes_high, false);
 
     Display_Refresh();
 }
@@ -248,12 +244,12 @@ void Display_Temerature() {
     }
     uint8_t temp_heigh = (int)temp / 10;
     uint8_t temp_low = (int)temp % 10;
-    clock.setDigit(DIGIT_HOURS_HIGH, temp_heigh);
-    clock.setDigit(DIGIT_HOURS_LOW, temp_low);
+    clock.setDigit(DIGIT_HOURS_HIGH, temp_heigh, false);
+    clock.setDigit(DIGIT_HOURS_LOW, temp_low, false);
     //show o
-    clock.setDigit(DIGIT_MINUTES_HIGH, 19);
+    clock.setDigit(DIGIT_MINUTES_HIGH, 19, false);
     //show C
-    clock.setDigit(DIGIT_MINUTES_LOW, 12);
+    clock.setDigit(DIGIT_MINUTES_LOW, 12, false);
 
     Display_Refresh();
 }
@@ -267,12 +263,12 @@ void Display_Humidity() {
     }
     uint8_t h_heigh = (int)h / 10;
     uint8_t h_low = (int)h % 10;
-    clock.setDigit(DIGIT_HOURS_HIGH, h_heigh);
-    clock.setDigit(DIGIT_HOURS_LOW, h_low);
+    clock.setDigit(DIGIT_HOURS_HIGH, h_heigh, false);
+    clock.setDigit(DIGIT_HOURS_LOW, h_low, false);
     //show h
-    clock.setDigit(DIGIT_MINUTES_HIGH, 17);
+    clock.setDigit(DIGIT_MINUTES_HIGH, 17, false);
     //turn off
-    clock.setDigit(DIGIT_MINUTES_LOW, -1);
+    clock.setDigit(DIGIT_MINUTES_LOW, -1, false);
 
     Display_Refresh();
 }
@@ -288,10 +284,10 @@ void showScoreMode(uint8_t score1, uint8_t score2) {
     uint8_t score2_low = score2 % 10;
     uint8_t score2_high = score2 / 10;
 
-    clock.setDigit(DIGIT_HOURS_LOW, score1_low);
-    clock.setDigit(DIGIT_HOURS_HIGH, score1_high);
-    clock.setDigit(DIGIT_MINUTES_LOW, score2_low);
-    clock.setDigit(DIGIT_MINUTES_HIGH, score2_high);
+    clock.setDigit(DIGIT_HOURS_LOW, score1_low, false);
+    clock.setDigit(DIGIT_HOURS_HIGH, score1_high, false);
+    clock.setDigit(DIGIT_MINUTES_LOW, score2_low, false);
+    clock.setDigit(DIGIT_MINUTES_HIGH, score2_high, false);
 
     Display_Refresh();
 }
@@ -301,6 +297,14 @@ void showScoreMode(uint8_t score1, uint8_t score2) {
 void Display_Refresh() {
     //Serial.println("Time Mode");
 
+    // // Blink the seconds on low bit of hours
+    // if(seconds_status != seconds_last_status) {
+    //     seconds_last_status = seconds_status;
+    //     clock.changeLastBit(DIGIT_HOURS_LOW, seconds_status);
+    //     Serial.print("Seconds changed: ");
+    //     Serial.println(seconds_status);
+    // }
+
     clock.displayDigit(DIGIT_HOURS_HIGH);
     clock.displayDigit(DIGIT_HOURS_LOW);
     clock.displayDigit(DIGIT_MINUTES_HIGH);
@@ -308,13 +312,6 @@ void Display_Refresh() {
     // clock.displayDigit(DIGIT_SECONDS_HIGH);
     // clock.displayDigit(DIGIT_SECONDS_LOW);
 
-    // Blink the seconds on low bit of hours
-    if(seconds_status != seconds_last_status) {
-        seconds_last_status = seconds_status;
-        clock.changeLastBit(DIGIT_HOURS_LOW, seconds_status);
-        // Serial.print("Seconds changed: ");
-        // Serial.println(seconds_status);
-    }
 }
 
 void printTemperature() {
