@@ -20,7 +20,8 @@ long next_millis = 0;
 bool seconds_status = true;
 bool seconds_last_status = false;
 
-OperationMode clock__Mode = CLOCK_OP_MODE_CLOCK;
+time_t mode_timeout = 0;
+
 ClockMode display__Mode = CLOCK_MODE_TIME;
 
 const uint8_t RTC_1HZ_PIN(2);    // RTC provides a 1Hz interrupt signal on this pin
@@ -46,11 +47,6 @@ void setup()
     }
     else {
         Serial.println("RTC has set the system time");
-
-        ////setTime(23, 31, 30, 13, 2, 2009);   //set the system time to 23h31m30s on 13Feb2009
-        // setTime(10, 35, 00, 31, 12, 2019);
-        // RTC.set(now());                     //set the RTC from the system time
-
         setUTC(RTC.get());
     }
 
@@ -68,6 +64,8 @@ void loop()
     //reset the watchdog timer
     wdt_reset();
 
+    time_t t = getUTC();
+
     char data = 0;
     if(BT.available() > 0) {
         data = BT.read();
@@ -75,12 +73,12 @@ void loop()
             bt__data += data;
         } else {
             //found ; end of data and start data processing
-            clock__Mode = btDataProcess();
+            btDataProcess(t);
             bt__data = "";
         }
     }
 
-    switch (clock__Mode)
+    switch (clock.getOperationMode())
     {
         case CLOCK_OP_MODE_SCORE:
             /* code */
@@ -93,16 +91,21 @@ void loop()
             break;
     }
 
-    //printTemperature();
+    if( t > mode_timeout) {
+        clock.setOperationMode("clockMode");
+        mode_timeout = t + 600;
+    }
 }
 
-OperationMode btDataProcess() {
+void btDataProcess(time_t t) {
     char input[22];
     bt__data.toCharArray(input, bt__data.length() + 1);
     char *token = strtok(input, " ");
 
     bt__cmd = token;
     token = strtok(NULL, " ");
+
+    clock.setOperationMode(bt__cmd);
 
     if (bt__cmd == "setTime")
     {
@@ -124,28 +127,15 @@ OperationMode btDataProcess() {
         );
         RTC.set(now()); //set the RTC from the system time
         setUTC(RTC.get());
-
-        Serial.println(bt__time[0]);
-        Serial.println(bt__time[1]);
-        Serial.println(bt__time[2]);
-        Serial.println("you are in [set time mode]");
     }
     
     else if(bt__cmd == "scoreMode") {
+        mode_timeout = t + 600;
         String __team1 = token;
         token = strtok(NULL, " ");
         String __team2 = token;
         showScoreMode(__team1.toInt(), __team2.toInt());
-        Serial.print(F("Team1: "));
-        Serial.print(__team1);
-        Serial.print(F(" Team2: "));
-        Serial.println(__team2);
     }
-
-    // Serial.println(bt__data);
-    // Serial.println(bt__cmd);
-
-    return clock.getOperationMode(bt__cmd);
 }
 
 // ------  RTC ---------
@@ -168,16 +158,6 @@ void setUTC(time_t utc) {
 // 1Hz RTC interrupt handler increments the current time
 void incrementTime() {
     ++isrUTC;
-}
-
-// format and print a time_t value
-void printTime(time_t t) {
-    char buf[25];
-    char m[4];    // temporary storage for month string (DateStrings.cpp uses shared buffer)
-    strcpy(m, monthShortStr(month(t)));
-    sprintf(buf, "%.2d:%.2d:%.2d %s %.2d %s %d",
-        hour(t), minute(t), second(t), dayShortStr(weekday(t)), day(t), m, year(t));
-    Serial.println(buf);
 }
 
 // ------ END RTC ------
@@ -295,54 +275,10 @@ void showScoreMode(uint8_t score1, uint8_t score2) {
 // ---- END scoreMode ----
 
 void Display_Refresh() {
-    //Serial.println("Time Mode");
-
-    // // Blink the seconds on low bit of hours
-    // if(seconds_status != seconds_last_status) {
-    //     seconds_last_status = seconds_status;
-    //     clock.changeLastBit(DIGIT_HOURS_LOW, seconds_status);
-    //     Serial.print("Seconds changed: ");
-    //     Serial.println(seconds_status);
-    // }
-
     clock.displayDigit(DIGIT_HOURS_HIGH);
     clock.displayDigit(DIGIT_HOURS_LOW);
     clock.displayDigit(DIGIT_MINUTES_HIGH);
     clock.displayDigit(DIGIT_MINUTES_LOW);
     // clock.displayDigit(DIGIT_SECONDS_HIGH);
     // clock.displayDigit(DIGIT_SECONDS_LOW);
-
-}
-
-void printTemperature() {
-    // Reading temperature or humidity takes about 250 milliseconds!
-    // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-    float h = dht.readHumidity();
-    // Read temperature as Celsius (the default)
-    float t = dht.readTemperature();
-    // Read temperature as Fahrenheit (isFahrenheit = true)
-    float f = dht.readTemperature(true);
-
-    // Check if any reads failed and exit early (to try again).
-    if (isnan(h) || isnan(t) || isnan(f)) {
-        Serial.println(F("Failed to read from DHT sensor!"));
-        return;
-    }
-
-    // Compute heat index in Fahrenheit (the default)
-    float hif = dht.computeHeatIndex(f, h);
-    // Compute heat index in Celsius (isFahreheit = false)
-    float hic = dht.computeHeatIndex(t, h, false);
-
-    Serial.print(F("Humidity: "));
-    Serial.print(h);
-    Serial.print(F("%  Temperature: "));
-    Serial.print(t);
-    Serial.print(F("°C "));
-    Serial.print(f);
-    Serial.print(F("°F  Heat index: "));
-    Serial.print(hic);
-    Serial.print(F("°C "));
-    Serial.print(hif);
-    Serial.println(F("°F"));
 }

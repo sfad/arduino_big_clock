@@ -99,16 +99,19 @@ void DigitalClock::writeDigit(uint8_t digit, signed char digitHex) {
 }
 
 void DigitalClock::displayDigit(uint8_t digit) {
-    if((digits_current[digit] != digits_last[digit])) {
+    if(digits_current[digit] != digits_last[digit]) {
         // Serial.print("Digit: ");
         // Serial.print(digit);
         // Serial.print(" Value: ");
         // Serial.print(digits_current[digit]);
         // Serial.print(" Last: ");
         // Serial.println(digits_last[digit]);
+        if(digit == DIGIT_MINUTES_HIGH && operationMode == CLOCK_OP_MODE_SCORE) {
+            Serial.println("OperationMode: Score");
+        }
         signed char _digitHex = digits_current[digit];
-        if(digit == DIGIT_HOURS_HIGH) {
-            //trurn of last digit when it equal to zero
+        if(digit == DIGIT_HOURS_HIGH || (digit == DIGIT_MINUTES_HIGH && operationMode == CLOCK_OP_MODE_SCORE)) {
+            //turn of last digit when it equal to zero
             _digitHex = _digitHex != getSegmentHex(0) ? _digitHex : 0;
             writeDigit(digit, _digitHex);
         } else {
@@ -136,17 +139,20 @@ ClockMode DigitalClock::getClockMode(uint8_t t_seconds) {
     }
 }
 
-OperationMode DigitalClock::getOperationMode(String ck__cmd) {
-    if (ck__cmd == "scoreMode")
-    {
-        return CLOCK_OP_MODE_SCORE;
+void DigitalClock::setOperationMode(String ck__cmd) {
+    if (ck__cmd == "scoreMode") {
+        operationMode = CLOCK_OP_MODE_SCORE;
     }
-    else if (ck__cmd == "timerMode")
-    {
-        return CLOCK_OP_MODE_TIMER;
+    else if (ck__cmd == "timerMode") {
+        operationMode =  CLOCK_OP_MODE_TIMER;
     }
-    else
-    {
-        return CLOCK_OP_MODE_CLOCK;
+    else {
+        operationMode =  CLOCK_OP_MODE_CLOCK;
     }
+    
+    clearDigitsLast();
+}
+
+OperationMode DigitalClock::getOperationMode() {
+    return operationMode;
 }

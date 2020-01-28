@@ -32,13 +32,15 @@ class DigitalClock {
         void displayDigit(uint8_t digit);
         int getSegmentHex(uint8_t number);
         ClockMode getClockMode(uint8_t t_seconds);
-        OperationMode getOperationMode(String ck__cmd);
+        OperationMode getOperationMode();
+        void setOperationMode(String ck__cmd);
     private:
         void setupIOPort(uint8_t digit, uint8_t port, uint8_t portDir);
         int getDigitAddress(uint8_t digit);
         void writeDigit(uint8_t digit, signed char digitHex);
         signed char digits_current[4] = { 0 }; //[6]; if seconds included
         signed char digits_last[4] = { -1 }; //[6]; if seconds included
+        OperationMode operationMode = CLOCK_OP_MODE_CLOCK;
 };
 
 #endif // _CLOCK_LIB_H
