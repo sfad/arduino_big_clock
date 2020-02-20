@@ -1,5 +1,5 @@
-#ifndef _CLOCK_LIB_H
-#define _CLOCK_LIB_H
+#ifndef _SCORE_BOARD_LIB_H
+#define _SCORE_BOARD_LIB_H
 
 #define BLUETOOTH_TX 3
 #define BLUETOOTH_RX 4
@@ -18,13 +18,13 @@ enum ClockMode {
 };
 
 enum OperationMode {
-    CLOCK_OP_MODE_CLOCK,    //Clock mode
-    CLOCK_OP_MODE_TIMER,    //timer mode
-    CLOCK_OP_MODE_SCORE     //Score mode
+    SCORE_MODE_CLOCK,    //Clock mode
+    SCORE_MODE_TIMER,    //timer mode
+    SCORE_MODE_SCORE     //Score mode
 };
 
 
-class DigitalClock {
+class ScoreBoard {
     public:
         void begin();
         void setDigit(uint8_t digit, signed char digitValue, bool lastBit);
@@ -40,8 +40,8 @@ class DigitalClock {
         void writeDigit(uint8_t digit, signed char digitHex);
         signed char digits_current[4] = { 0 }; //[6]; if seconds included
         signed char digits_last[4] = { -1 }; //[6]; if seconds included
-        OperationMode operationMode = CLOCK_OP_MODE_CLOCK;
+        OperationMode operationMode = SCORE_MODE_CLOCK;
 };
 
-#endif // _CLOCK_LIB_H
+#endif // _SCORE_BOARD_LIB_H
 

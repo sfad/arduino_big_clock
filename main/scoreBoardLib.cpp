@@ -1,8 +1,8 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include "clockLib.h"
+#include "scoreBoardLib.h"
 
-void DigitalClock::begin() {
+void ScoreBoard::begin() {
     Wire.begin();
 
     setupIOPort(DIGIT_HOURS_HIGH, 0x00, 0x00);
@@ -13,7 +13,7 @@ void DigitalClock::begin() {
     // setupIOPort(DIGIT_SECONDS_LOW, 0x00, 0x00);
 }
 
-int DigitalClock::getDigitAddress(uint8_t digit) {
+int ScoreBoard::getDigitAddress(uint8_t digit) {
     switch (digit) {
         case DIGIT_HOURS_HIGH:
             return 0x20;        
@@ -32,7 +32,7 @@ int DigitalClock::getDigitAddress(uint8_t digit) {
     };
 }
 
-int DigitalClock::getSegmentHex(uint8_t number) {
+int ScoreBoard::getSegmentHex(uint8_t number) {
     if(number < 0 || number > 20) {
         return 0;
     }
@@ -61,7 +61,7 @@ int DigitalClock::getSegmentHex(uint8_t number) {
     return segmentDigit[number];
 }
 
-void DigitalClock::setupIOPort(uint8_t digit, uint8_t port, uint8_t portDir) {
+void ScoreBoard::setupIOPort(uint8_t digit, uint8_t port, uint8_t portDir) {
     int address = getDigitAddress(digit);
     // configure port A as output for Expansion 20
     Wire.beginTransmission(address);
@@ -70,7 +70,7 @@ void DigitalClock::setupIOPort(uint8_t digit, uint8_t port, uint8_t portDir) {
     Wire.endTransmission();
 }
 
-void DigitalClock::setDigit(uint8_t digit, signed char digitValue, bool lastBit) {
+void ScoreBoard::setDigit(uint8_t digit, signed char digitValue, bool lastBit) {
     signed char digitHex = getSegmentHex(digitValue);
     if (lastBit) {
         digitHex = digitHex | 0X80;
@@ -81,11 +81,11 @@ void DigitalClock::setDigit(uint8_t digit, signed char digitValue, bool lastBit)
     digits_current[digit] = digitHex;
 }
 
-void DigitalClock::clearDigitsLast() {
+void ScoreBoard::clearDigitsLast() {
     memset(digits_last, -1, sizeof digits_last);
 }
 
-void DigitalClock::writeDigit(uint8_t digit, signed char digitHex) {
+void ScoreBoard::writeDigit(uint8_t digit, signed char digitHex) {
     int address = getDigitAddress(digit);
     //Serial.println(address, HEX);
 
@@ -98,7 +98,7 @@ void DigitalClock::writeDigit(uint8_t digit, signed char digitHex) {
     Wire.endTransmission();
 }
 
-void DigitalClock::displayDigit(uint8_t digit) {
+void ScoreBoard::displayDigit(uint8_t digit) {
     if(digits_current[digit] != digits_last[digit]) {
         // Serial.print("Digit: ");
         // Serial.print(digit);
@@ -106,11 +106,11 @@ void DigitalClock::displayDigit(uint8_t digit) {
         // Serial.print(digits_current[digit]);
         // Serial.print(" Last: ");
         // Serial.println(digits_last[digit]);
-        if(digit == DIGIT_MINUTES_HIGH && operationMode == CLOCK_OP_MODE_SCORE) {
+        if(digit == DIGIT_MINUTES_HIGH && operationMode == SCORE_MODE_SCORE) {
             Serial.println("OperationMode: Score");
         }
         signed char _digitHex = digits_current[digit];
-        if(digit == DIGIT_HOURS_HIGH || (digit == DIGIT_MINUTES_HIGH && operationMode == CLOCK_OP_MODE_SCORE)) {
+        if(digit == DIGIT_HOURS_HIGH || (digit == DIGIT_MINUTES_HIGH && operationMode == SCORE_MODE_SCORE)) {
             //turn of last digit when it equal to zero
             _digitHex = _digitHex != getSegmentHex(0) ? _digitHex : 0;
             writeDigit(digit, _digitHex);
@@ -120,7 +120,7 @@ void DigitalClock::displayDigit(uint8_t digit) {
     }
 }
 
-ClockMode DigitalClock::getClockMode(uint8_t t_seconds) {
+ClockMode ScoreBoard::getClockMode(uint8_t t_seconds) {
     if (t_seconds < 30)
     {
         return CLOCK_MODE_TIME;
@@ -139,20 +139,20 @@ ClockMode DigitalClock::getClockMode(uint8_t t_seconds) {
     }
 }
 
-void DigitalClock::setOperationMode(String ck__cmd) {
+void ScoreBoard::setOperationMode(String ck__cmd) {
     if (ck__cmd == "scoreMode") {
-        operationMode = CLOCK_OP_MODE_SCORE;
+        operationMode = SCORE_MODE_SCORE;
     }
     else if (ck__cmd == "timerMode") {
-        operationMode =  CLOCK_OP_MODE_TIMER;
+        operationMode =  SCORE_MODE_TIMER;
     }
     else {
-        operationMode =  CLOCK_OP_MODE_CLOCK;
+        operationMode =  SCORE_MODE_CLOCK;
     }
     
     clearDigitsLast();
 }
 
-OperationMode DigitalClock::getOperationMode() {
+OperationMode ScoreBoard::getOperationMode() {
     return operationMode;
 }

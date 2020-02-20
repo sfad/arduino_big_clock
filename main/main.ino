@@ -3,7 +3,7 @@
 #include <SoftwareSerial.h>
 #include <DS3232RTC.h>
 
-#include "clockLib.h"
+#include "scoreBoardLib.h"
 #include "DHT.h"
 
 #define DHTPIN 5        // Digital pin connected to the DHT sensor
@@ -15,7 +15,7 @@ volatile time_t isrUTC;         // ISR's copy of current time in UTC
 String bt__data = "";
 String bt__cmd = "";
 
-DigitalClock clock;
+ScoreBoard score_board;
 long next_millis = 0;
 bool seconds_status = true;
 bool seconds_last_status = false;
@@ -51,7 +51,7 @@ void setup()
     }
 
     dht.begin();
-    clock.begin();
+    score_board.begin();
 
     //enable watchdog timer for 1 second
     wdt_enable(WDTO_1S);
@@ -78,25 +78,27 @@ void loop()
         }
     }
 
-    switch (clock.getOperationMode())
+    switch (score_board.getOperationMode())
     {
-        case CLOCK_OP_MODE_SCORE:
-            /* code */
+        case SCORE_MODE_SCORE:
+            // score mode code
             break;
-        case CLOCK_OP_MODE_TIMER:
-            /* code */
+        case SCORE_MODE_TIMER:
+            // timer mode code
             break;
         default: // Clock Mode
+            mode_timeout = 0;
             Do_ClockMode();
             break;
     }
 
     if( t > mode_timeout) {
-        clock.setOperationMode("clockMode");
+        score_board.setOperationMode("clockMode");
         mode_timeout = t + 600;
     }
 }
 
+//bluetooth data processing.
 void btDataProcess(time_t t) {
     char input[22];
     bt__data.toCharArray(input, bt__data.length() + 1);
@@ -105,7 +107,7 @@ void btDataProcess(time_t t) {
     bt__cmd = token;
     token = strtok(NULL, " ");
 
-    clock.setOperationMode(bt__cmd);
+    score_board.setOperationMode(bt__cmd);
 
     if (bt__cmd == "setTime")
     {
@@ -135,6 +137,21 @@ void btDataProcess(time_t t) {
         token = strtok(NULL, " ");
         String __team2 = token;
         showScoreMode(__team1.toInt(), __team2.toInt());
+    }
+
+    else if(bt__cmd == "timerMode") {
+        String timer_action = token;
+
+        if(timer_action == "start") {
+            //Start timer code
+
+        } else if(timer_action == "pause") {
+            //Pause timer code
+
+        } else if(timer_action == "reset") {
+            //Reset timer code
+
+        }
     }
 }
 
@@ -176,7 +193,7 @@ void Do_ClockMode() {
         seconds_last_status = false;
         next_millis = millis() + 500;
 
-        display__Mode = clock.getClockMode(second(t));
+        display__Mode = score_board.getClockMode(second(t));
     }
 
     switch (display__Mode) {
@@ -207,10 +224,10 @@ void showTimeDigits(time_t t) {
     uint8_t time_hours_low = hourFormat12(t) % 10;
     uint8_t time_hours_high = hourFormat12(t) / 10;
 
-    clock.setDigit(DIGIT_HOURS_LOW, time_hours_low, seconds_status);
-    clock.setDigit(DIGIT_HOURS_HIGH, time_hours_high, false);
-    clock.setDigit(DIGIT_MINUTES_LOW, time_minutes_low, false);
-    clock.setDigit(DIGIT_MINUTES_HIGH, time_minutes_high, false);
+    score_board.setDigit(DIGIT_HOURS_LOW, time_hours_low, seconds_status);
+    score_board.setDigit(DIGIT_HOURS_HIGH, time_hours_high, false);
+    score_board.setDigit(DIGIT_MINUTES_LOW, time_minutes_low, false);
+    score_board.setDigit(DIGIT_MINUTES_HIGH, time_minutes_high, false);
 
     Display_Refresh();
 }
@@ -224,12 +241,12 @@ void Display_Temerature() {
     }
     uint8_t temp_heigh = (int)temp / 10;
     uint8_t temp_low = (int)temp % 10;
-    clock.setDigit(DIGIT_HOURS_HIGH, temp_heigh, false);
-    clock.setDigit(DIGIT_HOURS_LOW, temp_low, false);
+    score_board.setDigit(DIGIT_HOURS_HIGH, temp_heigh, false);
+    score_board.setDigit(DIGIT_HOURS_LOW, temp_low, false);
     //show o
-    clock.setDigit(DIGIT_MINUTES_HIGH, 19, false);
+    score_board.setDigit(DIGIT_MINUTES_HIGH, 19, false);
     //show C
-    clock.setDigit(DIGIT_MINUTES_LOW, 12, false);
+    score_board.setDigit(DIGIT_MINUTES_LOW, 12, false);
 
     Display_Refresh();
 }
@@ -243,12 +260,12 @@ void Display_Humidity() {
     }
     uint8_t h_heigh = (int)h / 10;
     uint8_t h_low = (int)h % 10;
-    clock.setDigit(DIGIT_HOURS_HIGH, h_heigh, false);
-    clock.setDigit(DIGIT_HOURS_LOW, h_low, false);
+    score_board.setDigit(DIGIT_HOURS_HIGH, h_heigh, false);
+    score_board.setDigit(DIGIT_HOURS_LOW, h_low, false);
     //show h
-    clock.setDigit(DIGIT_MINUTES_HIGH, 17, false);
+    score_board.setDigit(DIGIT_MINUTES_HIGH, 17, false);
     //turn off
-    clock.setDigit(DIGIT_MINUTES_LOW, -1, false);
+    score_board.setDigit(DIGIT_MINUTES_LOW, -1, false);
 
     Display_Refresh();
 }
@@ -264,10 +281,10 @@ void showScoreMode(uint8_t score1, uint8_t score2) {
     uint8_t score2_low = score2 % 10;
     uint8_t score2_high = score2 / 10;
 
-    clock.setDigit(DIGIT_HOURS_LOW, score1_low, false);
-    clock.setDigit(DIGIT_HOURS_HIGH, score1_high, false);
-    clock.setDigit(DIGIT_MINUTES_LOW, score2_low, false);
-    clock.setDigit(DIGIT_MINUTES_HIGH, score2_high, false);
+    score_board.setDigit(DIGIT_HOURS_LOW, score1_low, false);
+    score_board.setDigit(DIGIT_HOURS_HIGH, score1_high, false);
+    score_board.setDigit(DIGIT_MINUTES_LOW, score2_low, false);
+    score_board.setDigit(DIGIT_MINUTES_HIGH, score2_high, false);
 
     Display_Refresh();
 }
@@ -275,10 +292,10 @@ void showScoreMode(uint8_t score1, uint8_t score2) {
 // ---- END scoreMode ----
 
 void Display_Refresh() {
-    clock.displayDigit(DIGIT_HOURS_HIGH);
-    clock.displayDigit(DIGIT_HOURS_LOW);
-    clock.displayDigit(DIGIT_MINUTES_HIGH);
-    clock.displayDigit(DIGIT_MINUTES_LOW);
-    // clock.displayDigit(DIGIT_SECONDS_HIGH);
-    // clock.displayDigit(DIGIT_SECONDS_LOW);
+    score_board.displayDigit(DIGIT_HOURS_HIGH);
+    score_board.displayDigit(DIGIT_HOURS_LOW);
+    score_board.displayDigit(DIGIT_MINUTES_HIGH);
+    score_board.displayDigit(DIGIT_MINUTES_LOW);
+    // score_board.displayDigit(DIGIT_SECONDS_HIGH);
+    // score_board.displayDigit(DIGIT_SECONDS_LOW);
 }
