@@ -78,18 +78,18 @@ void ScoreBoard::setDigit(uint8_t digit, signed char digitValue, bool lastBit) {
     else {
         digitHex = digitHex & 0x7F;
     }
-    digits_current[digit] = digitHex;
+    digitsCurrent[digit] = digitHex;
 }
 
 void ScoreBoard::clearDigitsLast() {
-    memset(digits_last, -1, sizeof digits_last);
+    memset(digitsLast, -1, sizeof digitsLast);
 }
 
 void ScoreBoard::writeDigit(uint8_t digit, signed char digitHex) {
     int address = getDigitAddress(digit);
     //Serial.println(address, HEX);
 
-    digits_last[digit] = digitHex;
+    digitsLast[digit] = digitHex;
     //Serial.println(digitHex, HEX);
 
     Wire.beginTransmission(address);
@@ -99,17 +99,17 @@ void ScoreBoard::writeDigit(uint8_t digit, signed char digitHex) {
 }
 
 void ScoreBoard::displayDigit(uint8_t digit) {
-    if(digits_current[digit] != digits_last[digit]) {
+    if(digitsCurrent[digit] != digitsLast[digit]) {
         // Serial.print("Digit: ");
         // Serial.print(digit);
         // Serial.print(" Value: ");
-        // Serial.print(digits_current[digit]);
+        // Serial.print(digitsCurrent[digit]);
         // Serial.print(" Last: ");
-        // Serial.println(digits_last[digit]);
+        // Serial.println(digitsLast[digit]);
         if(digit == DIGIT_MINUTES_HIGH && operationMode == SCORE_MODE_SCORE) {
             Serial.println("OperationMode: Score");
         }
-        signed char _digitHex = digits_current[digit];
+        signed char _digitHex = digitsCurrent[digit];
         if(digit == DIGIT_HOURS_HIGH || (digit == DIGIT_MINUTES_HIGH && operationMode == SCORE_MODE_SCORE)) {
             //turn of last digit when it equal to zero
             _digitHex = _digitHex != getSegmentHex(0) ? _digitHex : 0;
@@ -120,16 +120,16 @@ void ScoreBoard::displayDigit(uint8_t digit) {
     }
 }
 
-ClockMode ScoreBoard::getClockMode(uint8_t t_seconds) {
-    if (t_seconds < 30)
+ClockMode ScoreBoard::getClockMode(uint8_t timeSeconds) {
+    if (timeSeconds < 30)
     {
         return CLOCK_MODE_TIME;
     }
-    else if (t_seconds < 35)
+    else if (timeSeconds < 35)
     {
         return CLOCK_MODE_TEMPERATURE;
     }
-    else if (t_seconds < 38)
+    else if (timeSeconds < 38)
     {
         return CLOCK_MODE_HUMIDITY;
     }
@@ -139,11 +139,11 @@ ClockMode ScoreBoard::getClockMode(uint8_t t_seconds) {
     }
 }
 
-void ScoreBoard::setOperationMode(String ck__cmd) {
-    if (ck__cmd == "scoreMode") {
+void ScoreBoard::setOperationMode(String commandStr) {
+    if (commandStr == "scoreMode") {
         operationMode = SCORE_MODE_SCORE;
     }
-    else if (ck__cmd == "timerMode") {
+    else if (commandStr == "timerMode") {
         operationMode =  SCORE_MODE_TIMER;
     }
     else {

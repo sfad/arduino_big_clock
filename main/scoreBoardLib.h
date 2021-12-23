@@ -38,8 +38,8 @@ class ScoreBoard {
         void setupIOPort(uint8_t digit, uint8_t port, uint8_t portDir);
         int getDigitAddress(uint8_t digit);
         void writeDigit(uint8_t digit, signed char digitHex);
-        signed char digits_current[4] = { 0 }; //[6]; if seconds included
-        signed char digits_last[4] = { -1 }; //[6]; if seconds included
+        signed char digitsCurrent[4] = { 0 }; //[6]; if seconds included
+        signed char digitsLast[4] = { -1 }; //[6]; if seconds included
         OperationMode operationMode = SCORE_MODE_CLOCK;
 };
 
